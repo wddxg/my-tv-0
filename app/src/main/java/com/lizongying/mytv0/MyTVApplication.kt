@@ -109,7 +109,8 @@ class MyTVApplication : MultiDexApplication() {
 
     override fun attachBaseContext(base: Context) {
         try {
-            val locale = Locale.TRADITIONAL_CHINESE
+            // 本版本界面统一使用简体中文，不再强制切换到繁体
+            val locale = Locale.SIMPLIFIED_CHINESE
             val config = Configuration()
             config.setLocale(locale)
             super.attachBaseContext(

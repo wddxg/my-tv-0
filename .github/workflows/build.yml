@@ -1,9 +1,10 @@
-name: build
+name: build-kitkat
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,76 +15,91 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: set up JDK 21
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Run build with Gradle wrapper
-        run: ./gradlew clean && ./gradlew assembleRelease
-
-      - name: Sign app APK
-        id: sign_app
-        uses: r0adkll/sign-android-release@v1
-        with:
-          releaseDirectory: app/build/outputs/apk/release
-          alias: ${{ secrets.ALIAS }}
-          signingKeyBase64: ${{ secrets.KEYSTORE }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.ALIAS_PASSWORD }}
-        env:
-          # override default build-tools version (29.0.3) -- optional
-          BUILD_TOOLS_VERSION: "34.0.0"
-
-      - name: Get History
-        id: get_history
+      - name: Resolve version
         run: |
-          chmod +x history.sh
-          output=$(./history.sh)
-          echo "$output" > history.md
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            V="dev-$(git rev-parse --short HEAD)"
+          else
+            V="${GITHUB_REF_NAME#v}"
+          fi
+          echo "APP_VERSION=$V" >> "$GITHUB_ENV"
+          echo "version: $V"
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-          body_path: history.md
-
-      - name: Set Asset Name
-        id: set_asset_name
+      - name: Build release APK
         run: |
-          VERSION_WITHOUT_V=$(echo '${{ github.ref_name }}' | sed 's/^v//')
-          echo "asset_name=my-tv-0_${VERSION_WITHOUT_V}.apk" >> $GITHUB_ENV
+          chmod +x gradlew
+          ./gradlew clean assembleRelease --no-daemon
+          find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+      - name: Sign APK
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.sign_app.outputs.signedReleaseFile }}
-          asset_name: ${{ env.asset_name }}
-          asset_content_type: application/vnd.android.package-archive
+          KEYSTORE_B64: ${{ secrets.KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SECRET_ALIAS: ${{ secrets.ALIAS }}
+          ALIAS_PASSWORD: ${{ secrets.ALIAS_PASSWORD }}
+        run: |
+          set -euo pipefail
+          APK_IN=$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n1)
+          test -n "$APK_IN"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          BUILD_TOOLS=$(ls -d "$SDK_ROOT"/build-tools/* | sort -V | tail -n1)
+          echo "using build tools: $BUILD_TOOLS"
+          KS="$RUNNER_TEMP/mytv0-signing.jks"
 
-#      - name: Gitee Create Release
-#        run: |
-#          latest_commit=$(git rev-parse HEAD)
-#          history=$(cat history.md)
-#          curl -v POST https://gitee.com/api/v5/repos/${{ github.repository }}/releases \
-#          -H "Content-Type: application/json" \
-#          -d '{
-#            "access_token": "${{ secrets.GITEE_ACCESS_TOKEN}}",
-#            "tag_name": "${{ github.ref_name }}",
-#            "name": "Release ${{ github.ref_name }}",
-#            "body": "'"$history"'",
-#            "prerelease": false,
-#            "target_commitish": "'"$latest_commit"'"
-#          }'
+          if [ -n "${KEYSTORE_B64:-}" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$KS"
+            STOREPASS="$KEYSTORE_PASSWORD"
+            KEYPASS="$ALIAS_PASSWORD"
+            KEYALIAS="$SECRET_ALIAS"
+            echo "signing with the keystore from repository secrets"
+          else
+            keytool -genkeypair -v -keystore "$KS" -storetype PKCS12 \
+              -alias mytv0 -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass mytv0pass -keypass mytv0pass \
+              -dname "CN=my-tv-0 kitkat, OU=Personal, O=Personal, L=CN, ST=CN, C=CN"
+            STOREPASS=mytv0pass
+            KEYPASS=mytv0pass
+            KEYALIAS=mytv0
+            echo "no signing secrets found: generated a one-off keystore for this build"
+          fi
+
+          "$BUILD_TOOLS/zipalign" -f -p 4 "$APK_IN" "$RUNNER_TEMP/aligned.apk"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks "$KS" --ks-key-alias "$KEYALIAS" \
+            --ks-pass "pass:$STOREPASS" --key-pass "pass:$KEYPASS" \
+            --v1-signing-enabled true --v2-signing-enabled true \
+            --out "my-tv-0_${APP_VERSION}.apk" "$RUNNER_TEMP/aligned.apk"
+          "$BUILD_TOOLS/apksigner" verify --verbose "my-tv-0_${APP_VERSION}.apk"
+          ls -lh "my-tv-0_${APP_VERSION}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-tv-0-kitkat-apk
+          path: my-tv-0_*.apk
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          APK="my-tv-0_${APP_VERSION}.apk"
+          NOTES="安卓 4.4 兼容版本（简体中文 / 允许明文 HTTP）。构建提交：${GITHUB_SHA}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+          else
+            gh release create "$TAG" "$APK" --title "Release $TAG" --notes "$NOTES"
+          fi
+          gh release view "$TAG" --json url,tagName --jq '.url'

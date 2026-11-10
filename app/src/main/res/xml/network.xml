@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 本版本允许所有明文 HTTP 请求（视频源、EPG、远程配置），并信任系统及用户安装的 CA -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>

@@ -1,53 +1,59 @@
-# 我的電視·〇
+# 我的电视·〇（kitkat 简体中文版）
 
-電視視頻播放軟件，可以自定義視頻源
+电视视频播放软件，可以自定义视频源。本仓库是 [lizongying/my-tv-0](https://github.com/lizongying/my-tv-0) 的 `kitkat` 分支派生版本，面向安卓 4.4 设备。
 
-[my-tv-0](https://github.com/lizongying/my-tv-0)
+## 本版本相对上游的改动
+
+* **信任 HTTP 明文**：OkHttp 的连接规格放开 `CLEARTEXT`，视频源、EPG、远程配置均可直接使用 `http://` 地址；同时保留 `usesCleartextTraffic` 与 `network_security_config` 中的明文许可及用户 CA 信任。
+* **界面统一简体中文**：应用强制语言改为简体中文，默认字符串资源与内置远程配置网页（`http://设备IP:34567`）全部改为简体；繁体资源目录也替换为简体内容。
+* 应用内「更新应用」指向本仓库的 release，不再跳回上游。
+* 构建改用自包含的 GitHub Actions 工作流，无需上游私有签名密钥。
 
 ## 使用
 
-* 遙控器中鍵/觸屏單擊打開視頻列表
-* 遙控器右鍵/觸屏雙擊打開配置
-* 遙控器左鍵/觸屏長按打開節目單
-* 遙控器返回鍵關閉視頻列表/配置
-* 在聚焦視頻標題的時候，右鍵收藏/取消收藏
-* 打開配置后，選擇遠程配置，掃描二維碼可以配置視頻源等。也可以直接遠程配置地址 http://0.0.0.0:34567
-* 如果視頻源地址已配置，並且打開了“應用啟動后更新視頻源”后，應用啟動后會自動更新視頻源
-* 默認遙控器下鍵/觸屏下滑切換到下一個視頻。換台反轉打開後，邏輯相反
+* 遥控器中键/触屏单击打开视频列表
+* 遥控器右键/触屏双击打开配置
+* 遥控器左键/触屏长按打开节目单
+* 遥控器返回键关闭视频列表/配置
+* 在聚焦视频标题的时候，右键收藏/取消收藏
+* 打开配置后，选择远程配置，扫描二维码可以配置视频源等。也可以直接访问远程配置地址 http://0.0.0.0:34567
+* 如果视频源地址已配置，并且打开了「应用启动后更新视频源」，应用启动后会自动更新视频源
+* 默认遥控器下键/触屏下滑切换到下一个视频。换台反转打开后，逻辑相反
 
 注意：
 
-* 遇到問題可以先考慮重啟/恢復默認/清除數據/重新安裝等方式自助解決
-* 視頻源可以設置為本地文件，格式如：file:///mnt/sdcard/tmp/channels.m3u
-  /channels.m3u
-* 目前設置代理後，需要重啟生效。代理屬於全局代理，也就是視頻請求及其他請求都會使用代理。
+* 遇到问题可以先考虑重启/恢复默认/清除数据/重新安装等方式自助解决
+* 视频源可以设置为本地文件，格式如：`file:///mnt/sdcard/tmp/channels.m3u`、`/channels.m3u`
+* 为了方便使用，只支持设置 3 位频道号
+* 目前设置代理后，需要重启生效。代理属于全局代理，也就是视频请求及其他请求都会使用代理
+* 视频源地址使用 `http://` 即可，不需要改成 https
 
 目前支持的配置格式：
 
 * txt
     ```
-    組名,#genre#
-    標題,視頻地址
+    组名,#genre#
+    标题,视频地址
     ```
 * m3u
     ```
     #EXTM3U x-tvg-url=""
-    #EXTINF:-1 tvg-id="" tvg-chno="" tvg-name="標準標題" tvg-logo="图标" group-title="組名",標題
+    #EXTINF:-1 tvg-id="" tvg-chno="" tvg-name="标准标题" tvg-logo="图标" group-title="组名",标题
     #EXTVLCOPT:http-user-agent=
     #EXTVLCOPT:http-referrer=
-    視頻地址
+    视频地址
     ```
 * json
     ```json
     [
       {
-        "group": "組名",
-        "name": "標準標題",
-        "title": "標題",
+        "group": "组名",
+        "name": "标准标题",
+        "title": "标题",
         "logo": "图标",
-        "number": "頻道號",
+        "number": "频道号",
         "uris": [
-          "視頻地址"
+          "视频地址"
         ],
         "headers": {
           "user-agent": ""
@@ -56,47 +62,44 @@
     ]
     ```
 
-推薦配合使用 [my-tv-server](https://github.com/lizongying/my-tv-server)
+推荐配合使用 [my-tv-server](https://github.com/lizongying/my-tv-server)
 
-下載安裝 [releases](https://github.com/lizongying/my-tv-0/releases/)
+## 下载安装
 
-注意，“*-kitkat”為安卓4.4兼容版本
+在 [releases](https://github.com/wddxg/my-tv-0/releases/) 下载 `*-kitkat-*` 的 APK。
 
-更多下載地址 [my-tv-0](https://lyrics.run/my-tv-0.html)
-
-![image](./screenshots/Screenshot_20240810_151748.png)
-![image](./screenshots/Screenshot_20240813_232847.png)
-![image](./screenshots/Screenshot_20240813_232900.png)
-
-## 更新日誌
-
-[更新日誌](./HISTORY.md)
-
-## 其他
-
-建議通過ADB進行安裝：
+建议通过 ADB 安装：
 
 ```shell
 adb install my-tv-0.apk
 ```
 
-小米電視可以使用小米電視助手進行安裝
+小米电视可以使用小米电视助手进行安装。由于签名与上游官方版不同，从官方版升级时需要先卸载再安装。
 
-## TODO
+## 构建
 
-* 支持回看
-* 淺色菜單
+推送 `v*` 标签即会自动触发 GitHub Actions 构建并发布 release；也可以在 Actions 页面手动运行 `build-kitkat` 工作流，产物以 artifact 形式下载。
 
-## 常見問題
+如果配置了仓库 Secrets（`KEYSTORE`、`KEYSTORE_PASSWORD`、`ALIAS`、`ALIAS_PASSWORD`），会使用固定密钥签名，后续版本可直接覆盖安装；否则工作流会临时生成签名密钥，仅保证本次 APK 可安装。
 
-* 為什麼遠程配置視頻源文本後，再次打開應用後又恢復到原來的配置？
+![image](./screenshots/Screenshot_20240810_151748.png)
+![image](./screenshots/Screenshot_20240813_232847.png)
+![image](./screenshots/Screenshot_20240813_232900.png)
 
-  如果“應用啟動后更新視頻源”開啟後，且存在視頻源地址，則會自動更新，可能會覆蓋已保存的視頻源文本。
+## 更新日志
 
-## 讚賞
+[更新日志](./HISTORY.md)
+
+## 常见问题
+
+* 为什么远程配置视频源文本后，再次打开应用后又恢复到原来的配置？
+
+  如果「应用启动后更新视频源」开启后，且存在视频源地址，则会自动更新，可能会覆盖已保存的视频源文本。
+
+## 赞赏
 
 ![image](./screenshots/appreciate.png)
 
-## 感謝
+## 感谢
 
 [live](https://github.com/fanmingming/live)
