@@ -27,10 +27,10 @@ jobs:
 
       - name: Resolve version
         run: |
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-            V="dev-$(git rev-parse --short HEAD)"
-          else
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             V="${GITHUB_REF_NAME#v}"
+          else
+            V="dev-$(git rev-parse --short HEAD)"
           fi
           echo "APP_VERSION=$V" >> "$GITHUB_ENV"
           echo "version: $V"
