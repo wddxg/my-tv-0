@@ -78,7 +78,12 @@ adb install my-tv-0.apk
 
 ## 构建
 
-推送 `v*` 标签即会自动触发 GitHub Actions 构建并发布 release；也可以在 Actions 页面手动运行 `build-kitkat` 工作流，产物以 artifact 形式下载。
+在仓库的 **Actions → build-kitkat → Run workflow** 手动运行，并在 `ref` 处选择分支或 `v*` 标签：
+
+* 选择标签时，会构建 kitkat 代码、签名、上传 artifact，并自动发布/更新同名 GitHub release。
+* 选择分支时，只做构建与 artifact 上传，不发布 release，适合日常验证。
+
+GitHub 对 fork 仓库的 `push` 事件（含推送标签）不自动运行工作流，因此以手动运行为准；工作流里仍保留 `v*` 标签触发配置，便于仓库脱离 fork 关系后直接使用。
 
 如果配置了仓库 Secrets（`KEYSTORE`、`KEYSTORE_PASSWORD`、`ALIAS`、`ALIAS_PASSWORD`），会使用固定密钥签名，后续版本可直接覆盖安装；否则工作流会临时生成签名密钥，仅保证本次 APK 可安装。
 
